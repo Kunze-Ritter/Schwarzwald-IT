@@ -5,33 +5,29 @@ import { reducedMotion } from "../motion/index.js";
 const MINT     = "#2dd4a8";
 const MINT_RGB = "45,212,168";
 const C_BG     = "#061d16";
+const C_WHITE  = "#ffffff";
 
-// Relative Node-Positionen (Anteil an Canvas-Breite/Höhe)
-// Infrastruktur unten, Computing oben, IT-Sicherheit links
-const NODES = [
-  { slug: "it-infrastruktur", rx: 0.60, ry: 0.72, rScale: 0.115 },
-  { slug: "computing",        rx: 0.60, ry: 0.23, rScale: 0.100 },
-  { slug: "it-sicherheit",   rx: 0.20, ry: 0.50, rScale: 0.092 },
-];
-
-const EDGES        = [[0, 1], [0, 2], [1, 2]];
-const PULSE_SPEED  = [0.19, 0.16, 0.22];
-const ENTRY_DELAY  = [0.1,  0.45, 0.80];   // Sekunden, gestaffelt
+// Anzeigereihenfolge: Computing oben, Infrastruktur unten
+const CARD_SLUGS   = ["computing", "it-infrastruktur"];
+const SHIELD_SLUG  = "it-sicherheit";
+// Entrance-Delays in Sekunden
+const DELAYS       = [0.1, 0.6, 0.95, 1.15]; // Frame, Card0, Card1, Connector
 
 let stopLoop = null;
 
 // ── HTML ──────────────────────────────────────────────────────────────────────
 
 export function systemDiagramCanvas() {
-  const cards = NODES.map((nc) => {
-    const s     = services.find((sv) => sv.slug === nc.slug);
+  const allSlugs = [...CARD_SLUGS, SHIELD_SLUG];
+  const cards = allSlugs.map((slug) => {
+    const s     = services.find((sv) => sv.slug === slug);
     const short = s.system.length > 145 ? s.system.slice(0, 145) + "…" : s.system;
     return `
-      <div class="sd3-card" data-node="${nc.slug}">
+      <div class="sd3-card" data-node="${slug}">
         <p class="kicker">${s.node.role}</p>
         <h3>${s.title}</h3>
         <p>${short}</p>
-        <a class="text-link" href="/leistungen/${s.slug}/">Mehr zu ${s.title} →</a>
+        <a class="text-link" href="/leistungen/${slug}/">Mehr zu ${s.title} →</a>
       </div>`;
   }).join("");
 
@@ -44,7 +40,92 @@ export function systemDiagramCanvas() {
     </div>`;
 }
 
-// ── Init ──────────────────────────────────────────────────────────────────────
+// ── Icons (Canvas-Pfade, cx/cy = Mittelpunkt, size = ca. 40px) ────────────────
+
+function iconServer(ctx, cx, cy, size) {
+  const s = size / 40;
+  const x = cx - 20 * s;
+  // Drei Server-Einheiten
+  [cy - 17*s, cy - 5*s, cy + 7*s].forEach((y) => {
+    ctx.beginPath();
+    ctx.roundRect(x, y, 40*s, 10*s, 2*s);
+    ctx.strokeStyle = MINT;
+    ctx.lineWidth   = 1.4 * s;
+    ctx.stroke();
+    // Status-LED
+    ctx.beginPath();
+    ctx.arc(x + 35*s, y + 5*s, 2.2*s, 0, Math.PI * 2);
+    ctx.fillStyle = MINT;
+    ctx.fill();
+  });
+  // Blinkende LED (pulsiert via globaler Zeit – wird über Glow-Effekt animiert)
+  ctx.beginPath();
+  ctx.arc(x + 35*s, cy - 17*s + 5*s, 2.2*s, 0, Math.PI * 2);
+  ctx.fillStyle = C_WHITE;
+  ctx.fill();
+}
+
+function iconMonitor(ctx, cx, cy, size) {
+  const s  = size / 40;
+  const x  = cx - 20*s;
+  const y  = cy - 16*s;
+  // Rahmen
+  ctx.beginPath();
+  ctx.roundRect(x, y, 40*s, 26*s, 3*s);
+  ctx.strokeStyle = MINT;
+  ctx.lineWidth   = 1.4 * s;
+  ctx.stroke();
+  // Innenbereich / Bildschirminhalt (simulierter Text)
+  ctx.strokeStyle = `rgba(${MINT_RGB},0.35)`;
+  ctx.lineWidth   = 1 * s;
+  [y+5*s, y+10*s, y+15*s].forEach((ly) => {
+    ctx.beginPath();
+    ctx.moveTo(x + 4*s,  ly);
+    ctx.lineTo(x + (ly === y+15*s ? 20*s : 34*s), ly);
+    ctx.stroke();
+  });
+  // Stand
+  ctx.strokeStyle = MINT;
+  ctx.lineWidth   = 1.4 * s;
+  ctx.beginPath();
+  ctx.moveTo(cx, y + 26*s);
+  ctx.lineTo(cx, y + 34*s);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(cx - 11*s, y + 34*s);
+  ctx.lineTo(cx + 11*s, y + 34*s);
+  ctx.stroke();
+}
+
+function iconShield(ctx, cx, cy, size) {
+  const s = size / 36;
+  // Schild-Form
+  ctx.beginPath();
+  ctx.moveTo(cx,         cy - 17*s);
+  ctx.lineTo(cx + 15*s,  cy - 11*s);
+  ctx.lineTo(cx + 15*s,  cy + 2*s);
+  ctx.bezierCurveTo(cx + 15*s, cy + 13*s, cx, cy + 17*s, cx, cy + 17*s);
+  ctx.bezierCurveTo(cx, cy + 17*s, cx - 15*s, cy + 13*s, cx - 15*s, cy + 2*s);
+  ctx.lineTo(cx - 15*s,  cy - 11*s);
+  ctx.closePath();
+  ctx.strokeStyle = MINT;
+  ctx.lineWidth   = 1.5 * s;
+  ctx.stroke();
+  // Haken
+  ctx.beginPath();
+  ctx.moveTo(cx - 6*s, cy + 1*s);
+  ctx.lineTo(cx - 1*s, cy + 6*s);
+  ctx.lineTo(cx + 8*s, cy - 5*s);
+  ctx.strokeStyle = MINT;
+  ctx.lineWidth   = 2 * s;
+  ctx.lineJoin    = "round";
+  ctx.lineCap     = "round";
+  ctx.stroke();
+}
+
+const ICON_FNS = [iconMonitor, iconServer]; // parallel zu CARD_SLUGS
+
+// ── Canvas-Logik ───────────────────────────────────────────────────────────────
 
 export function initSystemDiagramCanvas(main) {
   if (stopLoop) { stopLoop(); stopLoop = null; }
@@ -58,10 +139,9 @@ export function initSystemDiagramCanvas(main) {
   const ctx = canvas.getContext("2d");
   const dpr = Math.min(devicePixelRatio, 2);
 
-  // Canvas-Größe setzen (setzt auch Context-Transform zurück → re-scale)
   function resize() {
     const cw = Math.min(wrap.clientWidth, 860);
-    const ch = Math.round(Math.min(490, Math.max(300, cw * 0.52)));
+    const ch = Math.round(Math.min(470, Math.max(300, cw * 0.50)));
     canvas.width        = cw * dpr;
     canvas.height       = ch * dpr;
     canvas.style.width  = cw + "px";
@@ -76,23 +156,16 @@ export function initSystemDiagramCanvas(main) {
   const W = () => canvas.width  / dpr;
   const H = () => canvas.height / dpr;
 
-  function geom(nc) {
-    return {
-      x: nc.rx   * W(),
-      y: nc.ry   * H(),
-      r: Math.min(W(), H()) * nc.rScale,
-    };
-  }
-
-  // ── Zustand ───────────────────────────────────────────────────────
-  const entrance   = [0, 0, 0];
-  const pulseTimes = EDGES.map(() => Math.random());
-  let   hovered    = -1;
-  let   running    = true;
-  let   lastTs     = null;
-  let   elapsed    = 0;
-  let   mx         = -9999;
-  let   my         = -9999;
+  // ── Zustand ────────────────────────────────────────────────────────
+  const entrance = [0, 0, 0, 0]; // Frame, Card0, Card1, Connector
+  let   pulseT   = 0;
+  let   hovered  = -1; // 0=Computing, 1=Infra, 2=Sicherheit
+  let   running  = true;
+  let   lastTs   = null;
+  let   elapsed  = 0;
+  let   mx = -9999, my = -9999;
+  // Hit-Rects: werden pro Frame vor der Hover-Prüfung berechnet
+  const hitRects = [null, null, null];
 
   const cardEls = main.querySelectorAll(".sd3-card");
 
@@ -103,217 +176,284 @@ export function initSystemDiagramCanvas(main) {
   });
   canvas.addEventListener("pointerleave", () => { mx = my = -9999; });
   canvas.addEventListener("click", () => {
+    const slugs = [CARD_SLUGS[0], CARD_SLUGS[1], SHIELD_SLUG];
     if (hovered >= 0) {
-      history.pushState({}, "", `/leistungen/${NODES[hovered].slug}/`);
+      history.pushState({}, "", `/leistungen/${slugs[hovered]}/`);
       window.dispatchEvent(new PopStateEvent("popstate"));
     }
   });
 
-  // ── Zeichenfunktionen ─────────────────────────────────────────────
-
-  function drawGrid() {
-    const w = W(), h = H(), step = 30;
-    ctx.save();
-    ctx.strokeStyle = `rgba(${MINT_RGB},0.045)`;
-    ctx.lineWidth = 1;
-    for (let x = step; x < w; x += step) {
-      ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke();
-    }
-    for (let y = step; y < h; y += step) {
-      ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke();
-    }
-    ctx.restore();
+  function inHit(r) {
+    return r && mx >= r.x && mx <= r.x + r.w && my >= r.y && my <= r.y + r.h;
   }
 
-  // IT-Sicherheit: animierter Schutzring um alle drei Nodes
-  function drawShield(alpha) {
-    if (alpha <= 0) return;
-    const cx = W() * 0.44;
-    const cy = H() * 0.48;
-    const rx = W() * 0.30;
-    const ry = H() * 0.38;
+  // ── Geometrie-Berechnung (einmal pro Frame) ─────────────────────────
+  function computeLayout() {
+    const w = W(), h = H();
+    const outerPad = 16;
+    const innerPad = 28;
 
+    const frameX = outerPad;
+    const frameY = outerPad;
+    const frameW = w - outerPad * 2;
+    const frameH = h - outerPad * 2;
+
+    const cardX  = frameX + innerPad;
+    const cardW  = frameW - innerPad * 2;
+    const cardH  = Math.min(108, Math.floor((frameH - innerPad * 2 - 36) * 0.46));
+    const topY   = frameY + innerPad + 20; // +20 für Label-Platz
+    const botY   = frameY + frameH - innerPad - cardH;
+
+    return { w, h, frameX, frameY, frameW, frameH, cardX, cardW, cardH, topY, botY };
+  }
+
+  // ── Zeichenfunktionen ────────────────────────────────────────────────
+
+  function drawFrame(l, alpha, isActive) {
+    if (alpha <= 0) return;
     ctx.save();
 
-    // Füllung (sehr subtil)
-    const fill = ctx.createRadialGradient(cx, cy, rx * 0.1, cx, cy, rx);
-    fill.addColorStop(0, `rgba(${MINT_RGB},0.055)`);
-    fill.addColorStop(1, `rgba(${MINT_RGB},0)`);
+    // Subtile Füllung
+    ctx.globalAlpha = alpha * (isActive ? 0.12 : 0.06);
+    const fill = ctx.createLinearGradient(l.frameX, l.frameY, l.frameX, l.frameY + l.frameH);
+    fill.addColorStop(0, `rgba(${MINT_RGB},1)`);
+    fill.addColorStop(1, `rgba(${MINT_RGB},0.2)`);
     ctx.beginPath();
-    ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
+    ctx.roundRect(l.frameX, l.frameY, l.frameW, l.frameH, 18);
     ctx.fillStyle = fill;
     ctx.fill();
 
-    // Glow-Ring
-    ctx.globalAlpha = alpha * 0.35;
+    // Glow-Rand
+    ctx.globalAlpha = alpha * (isActive ? 0.45 : 0.22);
     ctx.strokeStyle = MINT;
-    ctx.lineWidth   = 9;
+    ctx.lineWidth   = 8;
     ctx.shadowColor = MINT;
-    ctx.shadowBlur  = 22;
+    ctx.shadowBlur  = isActive ? 28 : 16;
     ctx.beginPath();
-    ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
+    ctx.roundRect(l.frameX, l.frameY, l.frameW, l.frameH, 18);
     ctx.stroke();
     ctx.shadowBlur = 0;
 
-    // Animierter Dash-Ring
-    ctx.globalAlpha     = alpha * 0.65;
-    ctx.strokeStyle     = MINT;
-    ctx.lineWidth       = 1.6;
-    ctx.setLineDash([11, 7]);
-    ctx.lineDashOffset  = -elapsed * 20;
+    // Animierter Dash-Rand
+    ctx.globalAlpha    = alpha * 0.75;
+    ctx.strokeStyle    = MINT;
+    ctx.lineWidth      = 1.5;
+    ctx.setLineDash([13, 9]);
+    ctx.lineDashOffset = -elapsed * 20;
     ctx.beginPath();
-    ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
+    ctx.roundRect(l.frameX, l.frameY, l.frameW, l.frameH, 18);
     ctx.stroke();
     ctx.setLineDash([]);
 
-    ctx.restore();
-  }
+    // Eck-Brackets (L-Form, HUD-Ästhetik)
+    const bLen = 28, bW = 2.5;
+    const rx = 18;
+    [
+      [l.frameX + rx,          l.frameY,           1,  1],
+      [l.frameX + l.frameW - rx, l.frameY,         -1,  1],
+      [l.frameX + rx,          l.frameY + l.frameH, 1, -1],
+      [l.frameX + l.frameW - rx, l.frameY + l.frameH,-1,-1],
+    ].forEach(([bx, by, sx, sy]) => {
+      ctx.globalAlpha   = alpha * 0.95;
+      ctx.strokeStyle   = MINT;
+      ctx.lineWidth     = bW;
+      ctx.lineCap       = "round";
+      ctx.shadowColor   = MINT;
+      ctx.shadowBlur    = 6;
+      ctx.beginPath();
+      ctx.moveTo(bx + sx * bLen, by);
+      ctx.lineTo(bx, by);
+      ctx.lineTo(bx, by + sy * bLen);
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+    });
 
-  // Verbindung zwischen zwei Nodes mit Pulse-Dot
-  function drawEdge(aIdx, bIdx, pulseT, alpha) {
-    if (alpha <= 0) return;
-    const a = geom(NODES[aIdx]);
-    const b = geom(NODES[bIdx]);
+    // IT-Sicherheit Label + Schild-Icon oben mittig
+    const svc       = services.find(sv => sv.slug === SHIELD_SLUG);
+    const labelStr  = `${svc.title}  ·  ${svc.node.role}`;
+    const iconSize  = 20;
+    const iconGap   = 8;
+    ctx.font = `700 12px system-ui,sans-serif`;
+    const tw        = ctx.measureText(labelStr).width;
+    const totalW    = iconSize + iconGap + tw + 24;
+    const labelX    = l.frameX + l.frameW / 2 - totalW / 2;
+    const labelMidY = l.frameY;
 
-    ctx.save();
-    ctx.globalAlpha = alpha * 0.5;
-    ctx.strokeStyle = MINT;
-    ctx.lineWidth   = 1.4;
-    ctx.beginPath();
-    ctx.moveTo(a.x, a.y);
-    ctx.lineTo(b.x, b.y);
-    ctx.stroke();
+    // Hintergrundblock (überdeckt die Rahmenlinie)
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle   = C_BG;
+    ctx.fillRect(labelX - 4, labelMidY - 12, totalW + 8, 24);
 
-    // Pulse-Punkt
-    ctx.globalAlpha = alpha * 0.95;
-    const px = a.x + (b.x - a.x) * pulseT;
-    const py = a.y + (b.y - a.y) * pulseT;
-    ctx.beginPath();
-    ctx.arc(px, py, 3.8, 0, Math.PI * 2);
-    ctx.fillStyle   = "#fff";
+    // Schild-Icon
+    ctx.globalAlpha = alpha * 0.9;
     ctx.shadowColor = MINT;
-    ctx.shadowBlur  = 12;
-    ctx.fill();
-    ctx.shadowBlur = 0;
+    ctx.shadowBlur  = 8;
+    iconShield(ctx, labelX + iconSize * 0.5, labelMidY, iconSize);
+    ctx.shadowBlur  = 0;
+
+    // Text
+    ctx.globalAlpha  = alpha;
+    ctx.fillStyle    = MINT;
+    ctx.textAlign    = "left";
+    ctx.textBaseline = "middle";
+    ctx.fillText(labelStr, labelX + iconSize + iconGap, labelMidY);
 
     ctx.restore();
   }
 
-  // Node-Kreis mit Glow, Gradient, Labels
-  function drawNode(nc, progress, isActive) {
+  function drawCard(idx, l, progress, isActive) {
     if (progress <= 0) return;
-    const { x, y, r } = geom(nc);
-    const s = services.find((sv) => sv.slug === nc.slug);
-    const pulse = 0.68 + 0.32 * Math.sin(elapsed * 1.4 + NODES.indexOf(nc) * 2.1);
+    const slug  = CARD_SLUGS[idx];
+    const svc   = services.find(sv => sv.slug === slug);
+    const y     = idx === 0 ? l.topY : l.botY;
+    const slide = (1 - progress) * 16;
+    const iconF = ICON_FNS[idx];
 
     ctx.save();
     ctx.globalAlpha = progress;
+    ctx.translate(0, slide);
 
-    // Halo
-    const haloR = isActive ? r * 2.3 : r * 1.6;
-    const halo  = ctx.createRadialGradient(x, y, r * 0.4, x, y, haloR);
-    halo.addColorStop(0, `rgba(${MINT_RGB},${isActive ? 0.22 : 0.10 * pulse})`);
-    halo.addColorStop(1, `rgba(${MINT_RGB},0)`);
+    // Hintergrund-Karte
+    const bg = ctx.createLinearGradient(l.cardX, y, l.cardX, y + l.cardH);
+    bg.addColorStop(0, isActive ? "#1c6b4f" : "#0e2c20");
+    bg.addColorStop(1, "#061a10");
     ctx.beginPath();
-    ctx.arc(x, y, haloR, 0, Math.PI * 2);
-    ctx.fillStyle = halo;
-    ctx.fill();
-
-    // Node-Körper
-    const nr   = isActive ? r * 1.07 : r;
-    const body = ctx.createRadialGradient(x - nr * 0.28, y - nr * 0.28, 0, x, y, nr);
-    body.addColorStop(0, "#1e7558");
-    body.addColorStop(1, "#071d14");
-    ctx.beginPath();
-    ctx.arc(x, y, nr, 0, Math.PI * 2);
-    ctx.fillStyle   = body;
+    ctx.roundRect(l.cardX, y, l.cardW, l.cardH, 13);
+    ctx.fillStyle   = bg;
     ctx.shadowColor = MINT;
-    ctx.shadowBlur  = isActive ? 36 : 14 + 8 * pulse;
+    ctx.shadowBlur  = isActive ? 24 : 0;
     ctx.fill();
-    ctx.shadowBlur = 0;
+    ctx.shadowBlur  = 0;
 
     // Rahmen
     ctx.beginPath();
-    ctx.arc(x, y, nr, 0, Math.PI * 2);
-    ctx.strokeStyle = isActive
-      ? MINT
-      : `rgba(${MINT_RGB},${0.42 + 0.38 * pulse})`;
-    ctx.lineWidth = isActive ? 2.5 : 1.6;
+    ctx.roundRect(l.cardX, y, l.cardW, l.cardH, 13);
+    ctx.strokeStyle = isActive ? MINT : `rgba(${MINT_RGB},0.28)`;
+    ctx.lineWidth   = isActive ? 2 : 1.2;
     ctx.stroke();
 
-    // Text: Titel (mehrzeilig bei Bindestrich-Namen)
-    ctx.textAlign    = "center";
-    ctx.textBaseline = "middle";
-    const parts = s.title.split("-");
-    const fs    = Math.max(11, Math.round(nr * 0.34));
-    ctx.font      = `700 ${fs}px system-ui,sans-serif`;
-    ctx.fillStyle = "#fff";
-    ctx.shadowBlur = 0;
+    // Linker Farbstreifen
+    ctx.beginPath();
+    ctx.roundRect(l.cardX, y, 4, l.cardH, [13, 0, 0, 13]);
+    ctx.fillStyle = `rgba(${MINT_RGB},${isActive ? 0.9 : 0.4})`;
+    ctx.fill();
 
-    if (parts.length > 1) {
-      ctx.fillText(parts[0] + "-",            x, y - fs * 0.68);
-      ctx.fillText(parts.slice(1).join("-"),  x, y + fs * 0.68);
-    } else {
-      ctx.fillText(s.title, x, y);
-    }
+    // Icon-Bereich
+    const iconCX = l.cardX + l.cardW * 0.11;
+    const iconCY = y + l.cardH * 0.5;
+    const iconSz = Math.min(38, l.cardH * 0.7);
+    ctx.shadowColor = MINT;
+    ctx.shadowBlur  = 10;
+    iconF(ctx, iconCX, iconCY, iconSz);
+    ctx.shadowBlur  = 0;
 
-    // Rolle unter dem Node
-    const rfs = Math.max(9, Math.round(nr * 0.24));
-    ctx.font      = `${rfs}px system-ui,sans-serif`;
-    ctx.fillStyle = `rgba(${MINT_RGB},0.82)`;
-    ctx.fillText(s.node.role, x, y + r + rfs * 1.5);
+    // Trenn-Linie
+    const sepX = l.cardX + l.cardW * 0.24;
+    ctx.beginPath();
+    ctx.moveTo(sepX, y + l.cardH * 0.18);
+    ctx.lineTo(sepX, y + l.cardH * 0.82);
+    ctx.strokeStyle = `rgba(${MINT_RGB},0.18)`;
+    ctx.lineWidth   = 1;
+    ctx.stroke();
+
+    // Titel
+    const textX = l.cardX + l.cardW * 0.28;
+    const titleFS = Math.max(12, Math.min(16, l.cardW * 0.044));
+    ctx.font      = `700 ${titleFS}px system-ui,sans-serif`;
+    ctx.fillStyle = C_WHITE;
+    ctx.textAlign = "left";
+    ctx.textBaseline = "alphabetic";
+    ctx.fillText(svc.title, textX, y + l.cardH * 0.44);
+
+    // Rolle
+    const roleFS = Math.max(9, Math.min(12, l.cardW * 0.032));
+    ctx.font      = `${roleFS}px system-ui,sans-serif`;
+    ctx.fillStyle = `rgba(${MINT_RGB},0.78)`;
+    ctx.fillText(svc.node.role, textX, y + l.cardH * 0.66);
 
     ctx.restore();
   }
 
-  // ── Frame-Loop ────────────────────────────────────────────────────
+  function drawConnector(l, progress) {
+    if (progress <= 0) return;
+    const x  = l.cardX + l.cardW / 2;
+    const y1 = l.topY + l.cardH;
+    const y2 = l.botY;
+    const currentY2 = y1 + (y2 - y1) * Math.min(1, progress * 2);
+
+    ctx.save();
+    ctx.globalAlpha = progress * 0.6;
+    ctx.strokeStyle = MINT;
+    ctx.lineWidth   = 1.4;
+    ctx.setLineDash([7, 5]);
+    ctx.lineDashOffset = -elapsed * 14;
+    ctx.beginPath();
+    ctx.moveTo(x, y1);
+    ctx.lineTo(x, currentY2);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    if (progress > 0.4) {
+      const pt = (elapsed * 0.18) % 1;
+      const py = y1 + (y2 - y1) * pt;
+      ctx.globalAlpha = progress * 0.9;
+      ctx.beginPath();
+      ctx.arc(x, py, 4, 0, Math.PI * 2);
+      ctx.fillStyle   = C_WHITE;
+      ctx.shadowColor = MINT;
+      ctx.shadowBlur  = 14;
+      ctx.fill();
+      ctx.shadowBlur  = 0;
+    }
+    ctx.restore();
+  }
+
+  // ── Frame-Loop ────────────────────────────────────────────────────────
 
   function frame(ts) {
     if (!running) return;
     requestAnimationFrame(frame);
 
     const dt = lastTs ? Math.min((ts - lastTs) / 1000, 0.05) : 0;
-    lastTs    = ts;
-    elapsed  += dt;
+    lastTs   = ts;
+    elapsed += dt;
+    pulseT  += dt;
 
-    // Hintergrund
     ctx.fillStyle = C_BG;
     ctx.fillRect(0, 0, W(), H());
-    drawGrid();
 
     // Entrance-Fortschritt
-    NODES.forEach((_, i) => {
-      const t = elapsed - ENTRY_DELAY[i];
+    DELAYS.forEach((d, i) => {
+      const t = elapsed - d;
       entrance[i] = t > 0 ? Math.min(1, t / 0.8) : 0;
     });
 
-    // Pulse-Positionen
-    EDGES.forEach((_, i) => {
-      pulseTimes[i] = (pulseTimes[i] + dt * PULSE_SPEED[i]) % 1;
-    });
+    // Layout berechnen
+    const l = computeLayout();
 
-    // Hover-Erkennung
+    // Hit-Rects setzen (vor Hover-Prüfung)
+    hitRects[0] = { x: l.cardX, y: l.topY, w: l.cardW, h: l.cardH };
+    hitRects[1] = { x: l.cardX, y: l.botY, w: l.cardW, h: l.cardH };
+    hitRects[2] = { x: l.frameX, y: l.frameY, w: l.frameW, h: l.frameH };
+
+    // Hover-Erkennung (Karten haben Vorrang vor Frame)
     let newHov = -1;
-    NODES.forEach((nc, i) => {
-      const { x, y, r } = geom(nc);
-      const dx = mx - x, dy = my - y;
-      if (dx * dx + dy * dy < (r * 1.3) ** 2) newHov = i;
-    });
+    if      (inHit(hitRects[0])) newHov = 0;
+    else if (inHit(hitRects[1])) newHov = 1;
+    else if (inHit(hitRects[2])) newHov = 2;
+
     if (newHov !== hovered) {
       hovered = newHov;
       canvas.style.cursor = hovered >= 0 ? "pointer" : "default";
       cardEls.forEach((c, i) => c.classList.toggle("is-active", i === hovered));
     }
 
-    // Zeichenreihenfolge: Schild → Kanten → Nodes
-    drawShield(entrance[2]);
-    EDGES.forEach(([a, b], i) =>
-      drawEdge(a, b, pulseTimes[i], Math.min(entrance[a], entrance[b]))
-    );
-    NODES.forEach((nc, i) => drawNode(nc, entrance[i], hovered === i));
+    // Zeichnen: Frame → Connector → Karten
+    drawFrame(l, entrance[0], hovered === 2);
+    drawConnector(l, entrance[3]);
+    drawCard(0, l, entrance[1], hovered === 0);
+    drawCard(1, l, entrance[2], hovered === 1);
   }
-
-  // ── Start wenn sichtbar ───────────────────────────────────────────
 
   const stopInView = inView(wrap, () => {
     requestAnimationFrame(frame);
