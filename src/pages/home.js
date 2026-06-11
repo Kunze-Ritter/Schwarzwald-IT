@@ -2,7 +2,7 @@ import { site } from "../data/site.js";
 import { services } from "../data/services.js";
 import { faq } from "../data/faq.js";
 import { referenzen } from "../data/referenzen.js";
-import { systemDiagram3d, initSystemDiagram3d } from "../components/system-diagram-3d.js";
+import { systemDiagramCanvas, initSystemDiagramCanvas } from "../components/system-diagram-canvas.js";
 import { ctaBlock } from "../components/cta-block.js";
 import { faqSection, faqJsonLd } from "../components/faq-section.js";
 
@@ -48,7 +48,7 @@ export function home() {
           abgestimmt ist.</p>
         </div>
       </div>
-      ${systemDiagram3d()}
+      ${systemDiagramCanvas()}
     </section>
 
     <section class="section">
@@ -141,6 +141,6 @@ export function home() {
       },
       faqJsonLd(faq),
     ],
-    mount: (main) => initSystemDiagram3d(main),
+    mount: (main) => initSystemDiagramCanvas(main),
   };
 }
