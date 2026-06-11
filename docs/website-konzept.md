@@ -190,7 +190,22 @@ SEO-Setup pro Route wie im Fewo-Repo: dynamische Meta-Tags, Canonical, JSON-LD (
 
 ---
 
-## 7. Offene Punkte / nächste Schritte
+## 7. DSGVO: Local-First-Grundsatz (verbindlich)
+
+Alle Ressourcen werden **lokal vom eigenen Server** geladen – keine Requests an Dritte beim Seitenaufruf:
+
+| Bereich | Regel |
+|---|---|
+| **Schriften** | Keine Google Fonts o. ä. Entwurf nutzt System-Font-Stack; finale Marken-Schrift als selbst gehostete WOFF2 unter `public/fonts/`. |
+| **JavaScript/CSS** | Alles via npm gebündelt (Vite). Keine CDN-Einbindungen (kein unpkg/jsdelivr/cdnjs). |
+| **Karten** | Leaflet selbst ist lokal, aber **OSM-Tiles sind ein externer Request** → im Entwurf bewusst keine Karte. Optionen: (a) selbst gehostete Tiles, (b) statisches Kartenbild, (c) Zwei-Klick-Lösung mit Einwilligung. ⚠️ Bei Fewo-Rösslewald prüfen: dort werden OSM-Tiles vermutlich extern geladen. |
+| **Videos** | Nur lokale MP4s über Video.js (wie Fewo) – keine YouTube/Vimeo-Embeds ohne Zwei-Klick. |
+| **Analytics** | Kein Drittanbieter-Tracking. Falls gewünscht: selbst gehostetes Matomo oder Plausible (Cookie-los konfiguriert). |
+| **Formulare** | Versand an eigenes Postfach/eigenen Endpoint, kein Drittanbieter-Formdienst. |
+| **Icons/Bilder** | Inline-SVG bzw. lokale Assets. |
+| **Folge** | Ohne externe Dienste und einwilligungspflichtige Cookies ist **kein Cookie-Banner nötig** – ein echtes Qualitätsmerkmal für ein IT-Systemhaus, das man auf der Seite ruhig kommunizieren darf. |
+
+## 8. Offene Punkte / nächste Schritte
 
 1. **Inhalte einsammeln:** Teamfotos, finale Referenz-Freigaben (welche Kunden dürfen für Schwarzwald-IT genannt werden?), exakte Zahlen (Reaktionszeit, Kundenanzahl), Partner-Zertifizierungsstufen.
 2. **Entscheidung Visualisierungs-Stil** (Topologie-Empfehlung vs. Hexagon/Layer/Leiterbahn) – gern als Motion-Prototyp der Sektion zuerst.
