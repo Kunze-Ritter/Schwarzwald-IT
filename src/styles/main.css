@@ -300,100 +300,51 @@ a:hover { text-decoration: underline; }
   color: var(--primary-dark);
 }
 
-/* --- System-Diagramm ------------------------------------------------------ */
+/* --- System-Diagramm (3D) ------------------------------------------------- */
 .section--system { background: var(--primary-ultra-dark); }
 .section--system .section-head h2 { color: #fff; }
 .section--system .section-head .lead { color: rgba(255, 255, 255, 0.75); }
 
-.system-diagram {
-  display: grid;
-  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
-  gap: clamp(1.5rem, 4vw, 4rem);
-  align-items: center;
-}
-
-.sd-figure svg {
+.sd3-wrap {
   width: 100%;
-  height: auto;
-  overflow: visible;
+  padding-inline: clamp(1.25rem, 4vw, 2.5rem);
+  padding-bottom: var(--space-section);
 }
 
-.sd-ring,
-.sd-link {
-  fill: none;
-  stroke: var(--accent);
-  stroke-width: 2.5;
-  stroke-linecap: round;
-  stroke-dasharray: 1;
-  stroke-dashoffset: 0;
-  opacity: 0.85;
+.sd3-canvas {
+  display: block;
+  width: 100%;
+  max-width: 58rem;
+  margin-inline: auto;
+  border-radius: var(--radius);
 }
 
-.sd-ring { stroke-width: 2; opacity: 0.55; }
-
-.sd-node {
-  cursor: pointer;
-  transform-box: fill-box;
-  transform-origin: center;
-  outline: none;
+.sd3-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(17rem, 1fr));
+  gap: var(--space-m);
+  max-width: var(--content-width);
+  margin: var(--space-l) auto 0;
 }
 
-.sd-animating .sd-node { opacity: 0; }
-
-.sd-node-circle {
-  fill: var(--primary);
-  stroke: rgba(45, 212, 168, 0.45);
-  stroke-width: 1.5;
-  transition: stroke 0.2s ease, stroke-width 0.2s ease;
+.sd3-card {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(45, 212, 168, 0.15);
+  border-radius: var(--radius);
+  padding: 1.6rem;
+  transition: border-color 0.25s ease, background 0.25s ease, transform 0.25s ease;
 }
 
-.sd-node-glow {
-  fill: var(--accent);
-  opacity: 0;
-  transition: opacity 0.25s ease;
+.sd3-card.is-active {
+  border-color: var(--accent);
+  background: rgba(45, 212, 168, 0.08);
+  transform: translateY(-4px);
 }
 
-.sd-node.is-active .sd-node-glow,
-.sd-node:hover .sd-node-glow,
-.sd-node:focus-visible .sd-node-glow { opacity: 0.16; }
-
-.sd-node.is-active .sd-node-circle,
-.sd-node:hover .sd-node-circle,
-.sd-node:focus-visible .sd-node-circle {
-  stroke: var(--accent);
-  stroke-width: 3;
-}
-
-.sd-node-label {
-  fill: #fff;
-  font-weight: 750;
-  font-size: 17px;
-  pointer-events: none;
-}
-
-.sd-node-role {
-  fill: rgba(255, 255, 255, 0.65);
-  font-size: 12.5px;
-  pointer-events: none;
-}
-
-.sd-pulse {
-  fill: var(--accent);
-  filter: drop-shadow(0 0 6px rgba(45, 212, 168, 0.9));
-}
-
-.sd-panels { min-height: 16rem; }
-
-.sd-panel .kicker { color: var(--accent); }
-.sd-panel h3 { color: #fff; }
-.sd-panel p { color: rgba(255, 255, 255, 0.78); }
-.sd-panel .text-link { color: var(--accent); }
-
-@media (max-width: 800px) {
-  .system-diagram { grid-template-columns: 1fr; }
-  .sd-figure { max-width: 26rem; margin-inline: auto; }
-  .sd-panels { min-height: 0; }
-}
+.sd3-card .kicker { color: var(--accent); }
+.sd3-card h3 { color: #fff; font-size: var(--h3); }
+.sd3-card p { color: rgba(255, 255, 255, 0.72); margin: 0 0 var(--space-s); font-size: var(--text-m); }
+.sd3-card .text-link { color: var(--accent); display: inline-block; }
 
 /* --- Karten / Grids -------------------------------------------------------- */
 .card-grid {

@@ -2,7 +2,7 @@ import { site } from "../data/site.js";
 import { services } from "../data/services.js";
 import { faq } from "../data/faq.js";
 import { referenzen } from "../data/referenzen.js";
-import { systemDiagram, initSystemDiagram } from "../components/system-diagram.js";
+import { systemDiagram3d, initSystemDiagram3d } from "../components/system-diagram-3d.js";
 import { ctaBlock } from "../components/cta-block.js";
 import { faqSection, faqJsonLd } from "../components/faq-section.js";
 
@@ -47,8 +47,8 @@ export function home() {
           zuverlässig verfügbar, sicher betrieben und optimal auf den Arbeitsalltag
           abgestimmt ist.</p>
         </div>
-        ${systemDiagram()}
       </div>
+      ${systemDiagram3d()}
     </section>
 
     <section class="section">
@@ -141,6 +141,6 @@ export function home() {
       },
       faqJsonLd(faq),
     ],
-    mount: (main) => initSystemDiagram(main),
+    mount: (main) => initSystemDiagram3d(main),
   };
 }
