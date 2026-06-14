@@ -6,6 +6,15 @@ import { onCleanup } from "../lib/lifecycle.js";
 import { NODES } from "./sysdiag-shared.js";
 import { initGears } from "./system-diagram-canvas.js";
 import { initNetwork } from "./system-diagram-network.js";
+import { initStack } from "./system-diagram-stack.js";
+import { initIso } from "./system-diagram-iso.js";
+
+const VIEWS = [
+  { id: "gears", label: "Zahnräder" },
+  { id: "network", label: "Netzwerk" },
+  { id: "stack", label: "Schichten" },
+  { id: "iso", label: "Isometrisch" },
+];
 
 export function systemDiagram() {
   const cards = NODES.map(({ slug }) => {
@@ -19,18 +28,20 @@ export function systemDiagram() {
       </article>`;
   }).join("");
 
+  const toggle = VIEWS.map(
+    (v, i) =>
+      `<button type="button" role="tab" data-view="${v.id}"${i === 0 ? ' class="is-active" aria-selected="true"' : ' aria-selected="false"'}>${v.label}</button>`
+  ).join("");
+  const canvases = VIEWS.map(
+    (v, i) =>
+      `<canvas class="gears__canvas" data-view="${v.id}" role="img"${i === 0 ? "" : " hidden"}
+        aria-label="Diagramm der drei Fachbereiche (${v.label})"></canvas>`
+  ).join("");
+
   return `
     <div class="gears">
-      <div class="sysdiag__toggle" role="tablist" aria-label="Darstellung wählen">
-        <button type="button" role="tab" data-view="gears" class="is-active" aria-selected="true">Zahnräder</button>
-        <button type="button" role="tab" data-view="network" aria-selected="false">Netzwerk</button>
-      </div>
-      <div class="gears__stage">
-        <canvas class="gears__canvas" data-view="gears" role="img"
-          aria-label="Diagramm: Infrastruktur, IT-Sicherheit und Computing greifen wie Zahnräder ineinander"></canvas>
-        <canvas class="gears__canvas" data-view="network" role="img" hidden
-          aria-label="Netzwerk-Diagramm: Infrastruktur, IT-Sicherheit und Computing tauschen Daten aus"></canvas>
-      </div>
+      <div class="sysdiag__toggle" role="tablist" aria-label="Darstellung wählen">${toggle}</div>
+      <div class="gears__stage">${canvases}</div>
       <div class="gears__cards">${cards}</div>
     </div>`;
 }
@@ -44,7 +55,9 @@ export function initSystemDiagram(main) {
     network: main.querySelector('canvas[data-view="network"]'),
   };
   const buttons = [...main.querySelectorAll(".sysdiag__toggle button")];
-  const renderers = { gears: initGears, network: initNetwork };
+  const renderers = { gears: initGears, network: initNetwork, stack: initStack, iso: initIso };
+  const canvasFor = {};
+  main.querySelectorAll(".gears__canvas").forEach((c) => { canvasFor[c.dataset.view] = c; });
 
   let stop = null, current = null;
   function activate(view) {
@@ -56,9 +69,8 @@ export function initSystemDiagram(main) {
       b.classList.toggle("is-active", on);
       b.setAttribute("aria-selected", String(on));
     });
-    canvases.gears.hidden = view !== "gears";
-    canvases.network.hidden = view !== "network";
-    stop = renderers[view](canvases[view], stage, cards);
+    Object.entries(canvasFor).forEach(([v, c]) => { c.hidden = v !== view; });
+    stop = renderers[view](canvasFor[view], stage, cards);
   }
 
   buttons.forEach((b) => b.addEventListener("click", () => activate(b.dataset.view)));

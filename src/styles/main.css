@@ -811,6 +811,10 @@ strong { font-weight: 600; }
 }
 .sysdiag__toggle button:hover { color: #fff; }
 .sysdiag__toggle button.is-active { background: var(--cyan); color: #04121c; font-weight: 500; }
+@media (max-width: 560px) {
+  .sysdiag__toggle { flex-wrap: wrap; justify-content: center; max-width: 100%; border-radius: 14px; }
+  .sysdiag__toggle button { padding: 7px 13px; font-size: 11px; }
+}
 .gears__stage {
   position: relative;
   width: 100%;
