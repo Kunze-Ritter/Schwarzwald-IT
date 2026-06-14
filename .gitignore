@@ -1,4 +1,5 @@
 node_modules/
 dist/
+etch/dist/
 .DS_Store
 *.local
