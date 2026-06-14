@@ -136,15 +136,15 @@ export function initSystemDiagramCanvas(main) {
 
   function layout() {
     Wc = stage.clientWidth;
-    Hc = Math.round(Wc * 0.74);
+    Hc = Math.round(Wc * 0.95);
     canvas.width = Wc * dpr;
     canvas.height = Hc * dpr;
     canvas.style.width = Wc + "px";
     canvas.style.height = Hc + "px";
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-    R = Wc * 0.18;
-    const gx = Wc / 2, gy = Hc / 2;
+    R = Wc * 0.155;
+    const gx = Wc / 2, gy = Hc * 0.56;
     // relative Positionen (Schwerpunkt = 0): Zentrum oben, zwei Räder unten
     const S = { x: gx, y: gy - 1.067 * R };
     const I = { x: gx - 1.2 * R, y: gy + 0.533 * R };
@@ -253,21 +253,52 @@ export function initSystemDiagramCanvas(main) {
       drawIcon(ctx, slug, g.x, g.y - R * 0.04, R * 0.34, `rgba(${col},0.95)`);
     }
     ctx.restore();
+  }
 
-    // Label unter dem Rad
+  // Label als Chip – zentrales Zahnrad oberhalb, äußere unterhalb (kein Eingriffs-Overlap).
+  function drawLabel(i, entrance, active) {
+    const g = geo[i];
+    const svc = services.find((s) => s.slug === NODES[i].slug);
+    const col = active ? RED : CYAN;
+    const scale = entrance < 1 ? 1 - Math.exp(-7 * entrance) * Math.cos(9 * entrance) : 1;
+    const sc = Math.min(scale, 1.04);
+    const tfs = Math.max(13, R * 0.16);
+    const rfs = tfs * 0.72;
+    const gap = R * 0.2;
+    const above = NODES[i].role === "center";
+
     ctx.save();
     ctx.globalAlpha = Math.min(entrance * 1.8, 1);
     ctx.textAlign = "center";
-    ctx.textBaseline = "top";
-    const svc = services.find((s) => s.slug === slug);
-    const ly = g.y + R * 1.12 * sc;
-    const tfs = Math.max(12, R * 0.16);
+    ctx.textBaseline = "alphabetic";
+
+    ctx.font = `500 ${tfs}px "Overused Grotesk", system-ui, sans-serif`;
+    const tw = ctx.measureText(svc.title).width;
+    ctx.font = `${rfs}px "Geist Mono", ui-monospace, monospace`;
+    const rw = ctx.measureText(svc.node.role).width;
+
+    const padX = tfs * 0.8, padY = tfs * 0.55, lineGap = tfs * 0.5;
+    const chipW = Math.max(tw, rw) + padX * 2;
+    const chipH = tfs + lineGap + rfs + padY * 2;
+    const edge = above ? g.y - R * sc - gap : g.y + R * sc + gap;
+    const chipY = above ? edge - chipH : edge;
+    const chipX = g.x - chipW / 2;
+
+    ctx.beginPath();
+    ctx.roundRect(chipX, chipY, chipW, chipH, 7);
+    ctx.fillStyle = "rgba(6,9,16,0.82)";
+    ctx.fill();
+    ctx.lineWidth = 1;
+    ctx.strokeStyle = `rgba(${col},${active ? 0.5 : 0.18})`;
+    ctx.stroke();
+
+    const titleBase = chipY + padY + tfs;
     ctx.font = `500 ${tfs}px "Overused Grotesk", system-ui, sans-serif`;
     ctx.fillStyle = active ? `rgba(${col},1)` : "#fff";
-    ctx.fillText(svc.title, g.x, ly);
-    ctx.font = `${tfs * 0.72}px "Geist Mono", ui-monospace, monospace`;
-    ctx.fillStyle = `rgba(${CYAN},0.8)`;
-    ctx.fillText(svc.node.role, g.x, ly + tfs * 1.15);
+    ctx.fillText(svc.title, g.x, titleBase);
+    ctx.font = `${rfs}px "Geist Mono", ui-monospace, monospace`;
+    ctx.fillStyle = `rgba(${CYAN},0.85)`;
+    ctx.fillText(svc.node.role, g.x, titleBase + lineGap + rfs);
     ctx.restore();
   }
 
@@ -296,6 +327,7 @@ export function initSystemDiagramCanvas(main) {
     drawGear(1, rotationFor(1, 0), 1, false);
     drawGear(2, rotationFor(2, 0), 1, false);
     drawGear(0, 0, 1, false);
+    [0, 1, 2].forEach((i) => drawLabel(i, 1, false));
     onCleanup(() => ro.disconnect());
     return;
   }
@@ -321,6 +353,9 @@ export function initSystemDiagramCanvas(main) {
     drawGear(1, rotationFor(1, rotS), ent(1), hovered === 1);
     drawGear(2, rotationFor(2, rotS), ent(2), hovered === 2);
     drawGear(0, rotationFor(0, rotS), ent(0), hovered === 0);
+    drawLabel(1, ent(1), hovered === 1);
+    drawLabel(2, ent(2), hovered === 2);
+    drawLabel(0, ent(0), hovered === 0);
   }
 
   // Erst starten, wenn der Block in den Viewport scrollt.
