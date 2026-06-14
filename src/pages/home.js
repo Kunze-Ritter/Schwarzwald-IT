@@ -3,7 +3,7 @@ import { services } from "../data/services.js";
 import { faq } from "../data/faq.js";
 import { referenzen } from "../data/referenzen.js";
 import { icon } from "../lib/icons.js";
-import { systemDiagramCanvas, initSystemDiagramCanvas } from "../components/system-diagram-canvas.js";
+import { systemDiagram, initSystemDiagram } from "../components/system-diagram.js";
 import { opsPanel, initOpsPanel } from "../components/hero-ops-panel.js";
 import { initHeroGrid } from "../components/hero-grid.js";
 import { ctaBlock } from "../components/cta-block.js";
@@ -104,7 +104,7 @@ export function home() {
           zuverlässig verfügbar, sicher betrieben und optimal auf den Arbeitsalltag
           abgestimmt ist.</p>
         </div>
-        ${systemDiagramCanvas()}
+        ${systemDiagram()}
       </div>
     </section>
 
@@ -231,7 +231,7 @@ export function home() {
     mount: (main) => {
       initHeroGrid(main);
       initOpsPanel(main);
-      initSystemDiagramCanvas(main);
+      initSystemDiagram(main);
     },
   };
 }

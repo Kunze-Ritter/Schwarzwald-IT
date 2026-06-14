@@ -787,6 +787,30 @@ strong { font-weight: 600; }
 .gears {
   margin-top: 8px;
 }
+.sysdiag__toggle {
+  display: flex;
+  width: fit-content;
+  gap: 4px;
+  margin: 0 auto 8px;
+  padding: 4px;
+  border: 1px solid var(--rule-on-dark);
+  border-radius: 999px;
+  background: rgba(255,255,255,.03);
+}
+.sysdiag__toggle button {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  color: rgba(255,255,255,.6);
+  background: transparent;
+  border: 0;
+  padding: 8px 18px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: color var(--dur-base), background var(--dur-base);
+}
+.sysdiag__toggle button:hover { color: #fff; }
+.sysdiag__toggle button.is-active { background: var(--cyan); color: #04121c; font-weight: 500; }
 .gears__stage {
   position: relative;
   width: 100%;
@@ -794,6 +818,7 @@ strong { font-weight: 600; }
   margin: 0 auto;
 }
 .gears__canvas { display: block; width: 100%; height: auto; cursor: default; }
+.gears__canvas[hidden] { display: none; }
 
 .gears__cards {
   display: grid;
