@@ -13,6 +13,13 @@ export function ueberUns() {
     </section>
 
     <section class="section">
+      <div class="container" data-motion-reveal>
+        <img src="/images/team.png" alt="Das Team von Schwarzwald-IT"
+          style="border-radius:8px;border:1px solid var(--border-subtle);width:100%;max-height:520px;object-fit:cover" loading="lazy" />
+      </div>
+    </section>
+
+    <section class="section section--alt">
       <div class="container container--narrow" data-motion-reveal>
         <h2>Unsere Geschichte</h2>
         <p>1983 in Freiburg gegründet, ist Kunze & Ritter seit über 40 Jahren

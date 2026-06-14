@@ -1,5 +1,5 @@
 // Die drei Fachbereiche (aus der PPT „Vorstellung Schwarzwald-IT") + Managed Services als Querschnitt.
-// Texte: PPT-Inhalte ohne Zahnrad-Metapher, umgeschrieben auf die System-/Netzwerk-Bildsprache.
+// system-Texte: 1:1 aus der PPT übernommen (Zahnrad-/„ineinandergreifen"-Bildsprache).
 export const services = [
   {
     slug: "it-infrastruktur",
@@ -8,7 +8,7 @@ export const services = [
     short:
       "Das Fundament Ihres IT-Betriebs: Netzwerke, Server und Cloud-Anbindungen – stabil, leistungsfähig und sauber geplant.",
     system:
-      "IT-Infrastruktur bildet das Fundament Ihres IT-Betriebs. Netzwerke, Server und Cloud-Anbindungen sind die Basis, auf der alles andere aufbaut. Erst wenn dieses Fundament stabil, leistungsfähig und sauber geplant ist, können IT-Sicherheit und Computing zuverlässig zusammenspielen.",
+      "IT-Infrastruktur bildet das Fundament Ihres IT-Betriebs. Netzwerke, Server und Cloud-Anbindungen sind das Zahnrad, auf dem alles andere aufbaut. Erst wenn diese Basis stabil, leistungsfähig und sauber geplant ist, können IT-Security und Computing zuverlässig ineinandergreifen und langfristig reibungslos funktionieren.",
     bullets: [
       "Netzwerkplanung, -installation und -betreuung",
       "Server- und Storage-Lösungen vor Ort oder in der Cloud (u. a. terra cloud)",
@@ -28,7 +28,7 @@ export const services = [
     short:
       "Schützt alle Bereiche Ihrer IT: Systeme verfügbar, Daten abgesichert, Risiken minimiert – damit nichts stillsteht.",
     system:
-      "IT-Sicherheit greift schützend in alle Bereiche ein. Sie sorgt dafür, dass Infrastrukturen geschützt, Systeme verfügbar und Daten jederzeit abgesichert sind. Als Schutzschicht um Infrastruktur und Computing verhindert sie Stillstand, minimiert Risiken und hält Ihre IT dauerhaft sicher in Betrieb.",
+      "IT-Security greift schützend in alle Bereiche ein. Sie sorgt dafür, dass Infrastrukturen geschützt, Systeme verfügbar und Daten jederzeit abgesichert sind. Als zentrales Zahnrad im Zusammenspiel mit Infrastruktur und Computing verhindert sie Stillstand, minimiert Risiken und hält Ihre IT dauerhaft sicher in Bewegung.",
     bullets: [
       "Firewall, Endpoint-Schutz und Schwachstellen-Checks",
       "Backup- und Notfallkonzepte, die im Ernstfall wirklich greifen",
@@ -39,7 +39,7 @@ export const services = [
       "Phishing-Mails landen täglich im Postfach.",
       "E-Mail-Archivierung – Pflicht, aber ungelöst.",
     ],
-    node: { label: "IT-Sicherheit", role: "Der Schutzschild" },
+    node: { label: "IT-Sicherheit", role: "Das zentrale Zahnrad" },
   },
   {
     slug: "computing",
@@ -48,7 +48,7 @@ export const services = [
     short:
       "Macht IT im Arbeitsalltag erleb- und nutzbar: moderne Arbeitsplätze, Anwendungen und Cloud-Services – ohne Reibungsverluste.",
     system:
-      "Computing macht IT im Arbeitsalltag erleb- und nutzbar. Arbeitsplätze, Anwendungen und Cloud-Services sind die Ebene, mit der Ihre Mitarbeitenden täglich arbeiten. Damit das reibungslos läuft, setzt sie auf eine stabile Infrastruktur und wirksame IT-Sicherheit auf – erst im Zusammenspiel entsteht produktives Arbeiten.",
+      "Computing macht IT im Arbeitsalltag erleb- und nutzbar. Arbeitsplätze, Anwendungen und Cloud-Services sind das Zahnrad, mit dem Mitarbeitende täglich arbeiten. Damit dieses reibungslos läuft, greifen wir gezielt auf eine stabile Infrastruktur und wirksame IT-Security zurück – denn nur im Zusammenspiel aller Zahnräder entsteht produktives Arbeiten ohne Reibungsverluste.",
     bullets: [
       "Moderne Arbeitsplätze: Hardware, Betriebssysteme, Microsoft-Umgebungen",
       "Automatisiertes Client-Management mit baramundi – auch an Außenstandorten",

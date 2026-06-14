@@ -1,4 +1,5 @@
 import { site } from "../data/site.js";
+import { icon } from "../lib/icons.js";
 
 export function kontakt() {
   const html = `
@@ -12,32 +13,25 @@ export function kontakt() {
     </section>
     <section class="section">
       <div class="container contact-grid">
-        <div data-motion-reveal>
-          <h2 class="h3">Direkt erreichen</h2>
-          <p>
-            <strong>Telefon:</strong>
-            <a href="tel:${site.phone.replace(/[\s/]/g, "")}">${site.phoneDisplay}</a><br>
-            <strong>E-Mail:</strong>
-            <a href="mailto:${site.email}">${site.email}</a>
-          </p>
-          <p>${site.legalName}<br>
-          ${site.address.street}<br>
-          ${site.address.zip} ${site.address.city}</p>
-          <p class="footer-note">Hinweis: Wir betreuen ausschließlich Unternehmen
-          (B2B) – keinen Privatkunden-Support.</p>
-          <!-- DSGVO: Bewusst keine eingebettete Karte von Drittservern.
-               Option für später: selbst gehostete Tiles oder statisches Kartenbild. -->
+        <div class="contact-info" data-motion-reveal>
+          <div>${icon("phone")}<div><strong>Telefon</strong>
+            <a href="tel:${site.phone.replace(/[\s/]/g, "")}" style="display:inline">${site.phoneDisplay}</a></div></div>
+          <div>${icon("envelope")}<div><strong>E-Mail</strong>
+            <a href="mailto:${site.email}" style="display:inline">${site.email}</a></div></div>
+          <div>${icon("location-dot")}<div><strong>Adresse</strong>
+            ${site.legalName}<br>${site.address.street}, ${site.address.zip} ${site.address.city}</div></div>
+          <p class="footer-note" style="color:var(--fg-3)">Hinweis: Wir betreuen ausschließlich
+          Unternehmen (B2B) – keinen Privatkunden-Support.</p>
+          <!-- DSGVO: Bewusst keine eingebettete Karte von Drittservern. -->
         </div>
         <form class="contact-form" data-motion-reveal action="#" method="post">
-          <h2 class="h3">Oder schreiben Sie uns</h2>
           <label>Name<input type="text" name="name" required autocomplete="name"></label>
           <label>Firma<input type="text" name="company" required autocomplete="organization"></label>
           <label>E-Mail oder Telefon<input type="text" name="contact" required></label>
           <label>Worum geht es? (optional)<textarea name="message" rows="4"></textarea></label>
-          <button class="btn btn--primary" type="submit">Anfrage senden</button>
-          <p class="footer-note">Prototyp: Der Versand ist noch nicht angebunden
-          (geplant: Übermittlung an eigenes Postfach, ohne Drittanbieter).
-          Es werden keine Daten an Dritte übertragen, kein Tracking.</p>
+          <button class="btn btn--primary" type="submit">Anfrage senden <span class="arrow">→</span></button>
+          <p class="footer-note" style="color:var(--fg-3);margin-top:16px">Prototyp: Der Versand ist
+          noch nicht angebunden. Es werden keine Daten an Dritte übertragen, kein Tracking.</p>
         </form>
       </div>
     </section>

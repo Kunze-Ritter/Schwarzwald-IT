@@ -10,6 +10,7 @@ import { support } from "./pages/support.js";
 import { impressum, datenschutz } from "./pages/legal.js";
 import { notFound } from "./pages/not-found.js";
 import { initMotion } from "./motion/index.js";
+import { runCleanups } from "./lib/lifecycle.js";
 import { site } from "./data/site.js";
 
 const routes = [
@@ -70,11 +71,13 @@ function setMeta(view) {
 let main;
 
 function render(view, { focus = false } = {}) {
+  runCleanups(); // Loops/Intervalle der vorherigen Seite stoppen
   main.innerHTML = view.html;
   setMeta(view);
   view.mount?.(main);
   initMotion(main);
   updateActiveNav();
+  window.dispatchEvent(new Event("route-change")); // Header-Chrome aktualisieren
   if (focus) {
     main.focus({ preventScroll: true });
     window.scrollTo({ top: 0, behavior: "instant" });

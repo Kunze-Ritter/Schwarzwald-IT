@@ -1,4 +1,5 @@
 import { site } from "../data/site.js";
+import { icon } from "../lib/icons.js";
 
 const nav = [
   ["/leistungen/", "Leistungen"],
@@ -8,22 +9,28 @@ const nav = [
   ["/support/", "Support"],
 ];
 
+// Header ist über dem dunklen Hero transluzent, sonst (gescrollt oder auf
+// Unterseiten) solide mit hellem Hintergrund.
+function syncChrome(el) {
+  const overHero = location.pathname === "/" && window.scrollY <= 40;
+  el.classList.toggle("is-translucent", overHero);
+  el.classList.toggle("is-solid", !overHero);
+}
+
 export function renderHeader() {
   const el = document.getElementById("site-header");
   el.innerHTML = `
-    <div class="header-inner container">
+    <div class="header-inner">
       <a class="brand" href="/" aria-label="${site.name} – Startseite">
-        <svg class="brand-mark" viewBox="0 0 32 32" aria-hidden="true">
-          <path d="M16 3 L27 22 H21 L26 29 H6 L11 22 H5 Z" fill="currentColor"/>
-        </svg>
-        <span class="brand-name">Schwarzwald<span class="brand-accent">-IT</span></span>
+        <img class="logo-light" src="/images/logo-weiss.png" alt="${site.name}" />
+        <img class="logo-dark" src="/images/logo.png" alt="${site.name}" />
       </a>
       <button class="nav-toggle" aria-label="Menü öffnen" aria-expanded="false" aria-controls="site-nav">
-        <span></span><span></span><span></span>
+        ${icon("bars")}
       </button>
       <nav id="site-nav" class="site-nav" aria-label="Hauptnavigation">
         ${nav.map(([href, label]) => `<a href="${href}">${label}</a>`).join("")}
-        <a class="btn btn--primary nav-cta" href="/kontakt/">Erstgespräch</a>
+        <a class="nav-cta" href="/kontakt/">${icon("phone")} ${site.phoneDisplay}</a>
       </nav>
     </div>
   `;
@@ -34,4 +41,9 @@ export function renderHeader() {
     toggle.setAttribute("aria-expanded", String(open));
     toggle.setAttribute("aria-label", open ? "Menü schließen" : "Menü öffnen");
   });
+
+  syncChrome(el);
+  window.addEventListener("scroll", () => syncChrome(el), { passive: true });
+  // Router meldet nach jedem Seitenwechsel „route-change".
+  window.addEventListener("route-change", () => syncChrome(el));
 }

@@ -6,10 +6,19 @@ zur Validierung von Inhalten, Layout und Animationen vor der WordPress/Etch-Migr
 
 Konzept, Sitemap und Best Practices: [`docs/website-konzept.md`](docs/website-konzept.md)
 
+## Design
+
+Das Look-and-feel basiert auf dem mit **Claude Design** erstellten „v3"-Entwurf
+(IT-Ops-Ästhetik): kühl & technisch, **Cyan = Daten/Live**, **Rot = Marke/Aktion**,
+dunkle Flächen als Kontrast-Anker. Schriften: **Overused Grotesk** (Display/Body)
+und **Geist Mono** (Tech-Akzente) – lokal gebündelt unter `public/fonts/`.
+
 ## Stack
 
 - **Vite 8** + Vanilla JS, eigener History-API-SPA-Router
-- **motion** (motion.dev) für Scroll-Reveals und das System-Diagramm
+- **motion** (motion.dev) für Scroll-Reveals und Hero-Intro
+- **Canvas 2D** für die interaktiven Visualisierungen (Hero-Gitternetz, Ops-Console,
+  System-Diagramm) – bewusst ohne 3D-/WebGL-Dependency
 - Token-basiertes CSS (ACSS-kompatible Benennung, später Automatic.css)
 - Deployment-Ziel: Cloudflare Pages (`public/_redirects` als SPA-Fallback)
 
@@ -44,10 +53,12 @@ src/
 └── router.js      SPA-Router
 ```
 
-## Das System-Diagramm
+## Das System-Diagramm – „Drei Zahnräder"
 
-`src/components/system-diagram.js` visualisiert die drei ineinandergreifenden
-Fachbereiche als Netzwerk-Topologie: Infrastruktur (Fundament) und Computing
-(Arbeitsalltag) sind verbunden, IT-Sicherheit legt sich als Schutzring um das
-System. Nach der Aufbau-Animation fließen Datenimpulse über die Verbindungen;
-Hover/Tap auf einen Node zeigt den zugehörigen Text.
+`src/components/system-diagram-canvas.js` visualisiert die drei Fachbereiche als
+**ineinandergreifende Zahnräder** (Metapher aus der PPT „Vorstellung Schwarzwald-IT"):
+IT-Sicherheit ist das zentrale Zahnrad und greift in Infrastruktur (Fundament) und
+Computing (Arbeitsalltag). Die Räder kämmen physikalisch korrekt (1:1, gegenläufig)
+und drehen gemeinsam; an den Kämmpunkten leuchtet ein cyaner Funke. Hover/Tap auf ein
+Rad oder die zugehörige Karte hebt den Bereich rot hervor und führt zur Detailseite.
+`prefers-reduced-motion` wird respektiert (statische, gekämmte Darstellung).

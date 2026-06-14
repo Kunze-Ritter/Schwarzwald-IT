@@ -1,388 +1,349 @@
-import { inView } from "motion";
+// „Drei Zahnräder, die ineinandergreifen" — Canvas-2D-Visualisierung der drei
+// Fachbereiche (PPT „Vorstellung Schwarzwald-IT"). IT-Sicherheit ist das zentrale
+// Zahnrad und greift in Infrastruktur (Fundament) und Computing (Arbeitsalltag).
+// Die Räder kämmen physikalisch korrekt (1:1, gegenläufig) und drehen gemeinsam.
+// v3-Look: Cyan = Daten/Verzahnung, Rot = aktiver/gehoverter Bereich.
 import { services } from "../data/services.js";
 import { reducedMotion } from "../motion/index.js";
+import { onCleanup } from "../lib/lifecycle.js";
+import { navigate } from "../router.js";
 
-const MINT     = "#2dd4a8";
-const MINT_RGB = "45,212,168";
-const C_BG     = "#061d16";
-const C_WHITE  = "#ffffff";
+const CYAN = "43,182,240";
+const RED = "227,6,19";
 
-// Dreieck-Layout: Infra erscheint zuerst (Fundament), dann Computing, dann IT-Sicherheit
+// Reihenfolge: [0] Zentrum (IT-Sicherheit), [1] links (Infrastruktur), [2] rechts (Computing)
 const NODES = [
-  { slug: "it-infrastruktur", tx: 0.22, ty: 0.68 }, // unten links
-  { slug: "computing",        tx: 0.78, ty: 0.68 }, // unten rechts
-  { slug: "it-sicherheit",   tx: 0.50, ty: 0.20 }, // oben mittig
+  { slug: "it-sicherheit", role: "center" },
+  { slug: "it-infrastruktur", role: "left" },
+  { slug: "computing", role: "right" },
 ];
-const EDGES       = [[0, 1], [0, 2], [1, 2]]; // alle verbunden
-const NODE_DELAYS = [0.10, 0.40, 0.80];        // Entrance pro Node
-const LINE_DELAY  = 1.05;                       // Linien nach den Nodes
+const ENTRANCE_DELAY = [0.1, 0.45, 0.7];
 
-let stopLoop = null;
-
-// ── HTML ──────────────────────────────────────────────────────────────────────
+const N_TEETH = 12;
+const STEP = (Math.PI * 2) / N_TEETH;
 
 export function systemDiagramCanvas() {
   const cards = NODES.map(({ slug }) => {
-    const s     = services.find(sv => sv.slug === slug);
-    const short = s.system.length > 145 ? s.system.slice(0, 145) + "…" : s.system;
+    const s = services.find((sv) => sv.slug === slug);
     return `
-      <div class="sd3-card" data-node="${slug}">
-        <p class="kicker">${s.node.role}</p>
+      <article class="gear-card" data-node="${slug}">
+        <div class="gear-card__role">${s.node.role}</div>
         <h3>${s.title}</h3>
-        <p>${short}</p>
+        <p>${s.system}</p>
         <a class="text-link" href="/leistungen/${slug}/">Mehr zu ${s.title} →</a>
-      </div>`;
+      </article>`;
   }).join("");
 
   return `
-    <div class="sd3-wrap">
-      <canvas class="sd3-canvas" aria-hidden="true"></canvas>
-      <div class="sd3-cards" aria-label="Die drei Fachbereiche von Schwarzwald-IT">
-        ${cards}
+    <div class="gears">
+      <div class="gears__stage">
+        <canvas class="gears__canvas" role="img"
+          aria-label="Diagramm: Infrastruktur, IT-Sicherheit und Computing greifen wie Zahnräder ineinander"></canvas>
       </div>
+      <div class="gears__cards">${cards}</div>
     </div>`;
 }
 
-// ── Icons (cx/cy = Mittelpunkt, size ≈ 40 CSS-px) ────────────────────────────
-
-function iconServer(ctx, cx, cy, size) {
-  const s = size / 40;
-  const x = cx - 20 * s;
-  ctx.strokeStyle = MINT;
-  ctx.lineWidth   = 1.5 * s;
-  [cy - 16*s, cy - 4*s, cy + 8*s].forEach(y => {
-    ctx.beginPath();
-    ctx.roundRect(x, y, 40*s, 10*s, 2*s);
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.arc(x + 35*s, y + 5*s, 2.2*s, 0, Math.PI * 2);
-    ctx.fillStyle = MINT;
-    ctx.fill();
-  });
-}
-
-function iconMonitor(ctx, cx, cy, size) {
-  const s = size / 40;
-  const x = cx - 20*s, y = cy - 17*s;
-  ctx.strokeStyle = MINT;
-  ctx.lineWidth   = 1.5 * s;
-  ctx.beginPath(); ctx.roundRect(x, y, 40*s, 26*s, 3*s); ctx.stroke();
-  ctx.strokeStyle = `rgba(${MINT_RGB},0.35)`;
-  ctx.lineWidth   = 1 * s;
-  [y+5*s, y+10*s, y+15*s].forEach(ly => {
-    ctx.beginPath();
-    ctx.moveTo(x + 4*s, ly);
-    ctx.lineTo(x + (ly === y+15*s ? 20*s : 34*s), ly);
-    ctx.stroke();
-  });
-  ctx.strokeStyle = MINT;
-  ctx.lineWidth   = 1.5 * s;
-  ctx.beginPath(); ctx.moveTo(cx, y+26*s); ctx.lineTo(cx, y+34*s); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(cx-11*s, y+34*s); ctx.lineTo(cx+11*s, y+34*s); ctx.stroke();
-}
-
-function iconShield(ctx, cx, cy, size) {
-  const s = size / 36;
+// ── Zahnrad-Geometrie ───────────────────────────────────────────────────────
+function gearPath(ctx, cx, cy, R, rot, scale) {
+  const m = (2 * R) / N_TEETH;        // Modul
+  const Rt = (R + 0.5 * m) * scale;   // Kopfkreis
+  const Rb = (R - 0.6 * m) * scale;   // Fußkreis
+  const tw = STEP * 0.40;             // Zahnkopf-Breite
+  const vw = STEP * 0.40;             // Lückengrund-Breite
   ctx.beginPath();
-  ctx.moveTo(cx,        cy - 17*s);
-  ctx.lineTo(cx + 15*s, cy - 11*s);
-  ctx.lineTo(cx + 15*s, cy + 2*s);
-  ctx.bezierCurveTo(cx+15*s, cy+13*s, cx, cy+17*s, cx, cy+17*s);
-  ctx.bezierCurveTo(cx, cy+17*s, cx-15*s, cy+13*s, cx-15*s, cy+2*s);
-  ctx.lineTo(cx - 15*s, cy - 11*s);
+  for (let k = 0; k < N_TEETH; k++) {
+    const c = rot + k * STEP;
+    pt(ctx, cx, cy, c - tw / 2, Rt, k === 0);
+    pt(ctx, cx, cy, c + tw / 2, Rt);
+    pt(ctx, cx, cy, c + STEP / 2 - vw / 2, Rb);
+    pt(ctx, cx, cy, c + STEP / 2 + vw / 2, Rb);
+  }
   ctx.closePath();
-  ctx.strokeStyle = MINT;
-  ctx.lineWidth   = 1.5 * s;
-  ctx.stroke();
-  // Haken
-  ctx.beginPath();
-  ctx.moveTo(cx - 6*s, cy + 1*s);
-  ctx.lineTo(cx - 1*s, cy + 6*s);
-  ctx.lineTo(cx + 8*s, cy - 5*s);
-  ctx.strokeStyle = MINT;
-  ctx.lineWidth   = 2 * s;
-  ctx.lineJoin    = "round";
-  ctx.lineCap     = "round";
-  ctx.stroke();
+}
+function pt(ctx, cx, cy, a, r, move) {
+  const x = cx + Math.cos(a) * r;
+  const y = cy + Math.sin(a) * r;
+  move ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
 }
 
-const ICON_MAP = {
-  "it-infrastruktur": iconServer,
-  "computing":        iconMonitor,
-  "it-sicherheit":   iconShield,
-};
-
-// ── Canvas-Logik ──────────────────────────────────────────────────────────────
+// ── Hub-Icons (cyan/rot), gezeichnet im statischen Nabenbereich ──────────────
+function drawIcon(ctx, slug, cx, cy, s, color) {
+  ctx.save();
+  ctx.strokeStyle = color;
+  ctx.fillStyle = color;
+  ctx.lineWidth = 1.6 * (s / 22);
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
+  if (slug === "it-infrastruktur") {
+    // Server-Stack
+    const w = s * 1.1, x = cx - w / 2;
+    [-0.42, 0, 0.42].forEach((o) => {
+      const y = cy + o * s;
+      roundRect(ctx, x, y - 0.16 * s, w, 0.32 * s, 0.06 * s);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(x + w - 0.16 * s, y, 0.06 * s, 0, Math.PI * 2);
+      ctx.fill();
+    });
+  } else if (slug === "computing") {
+    // Monitor
+    const w = s * 1.2, h = s * 0.8;
+    roundRect(ctx, cx - w / 2, cy - h / 2 - 0.1 * s, w, h, 0.08 * s);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(cx, cy + h / 2 - 0.1 * s);
+    ctx.lineTo(cx, cy + h / 2 + 0.16 * s);
+    ctx.moveTo(cx - 0.3 * s, cy + h / 2 + 0.16 * s);
+    ctx.lineTo(cx + 0.3 * s, cy + h / 2 + 0.16 * s);
+    ctx.stroke();
+  } else {
+    // Schild mit Haken (IT-Sicherheit)
+    const r = s * 0.62;
+    ctx.beginPath();
+    ctx.moveTo(cx, cy - r);
+    ctx.lineTo(cx + r * 0.82, cy - r * 0.5);
+    ctx.lineTo(cx + r * 0.82, cy + r * 0.1);
+    ctx.bezierCurveTo(cx + r * 0.82, cy + r * 0.7, cx, cy + r, cx, cy + r);
+    ctx.bezierCurveTo(cx, cy + r, cx - r * 0.82, cy + r * 0.7, cx - r * 0.82, cy + r * 0.1);
+    ctx.lineTo(cx - r * 0.82, cy - r * 0.5);
+    ctx.closePath();
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.lineWidth = 2.2 * (s / 22);
+    ctx.moveTo(cx - r * 0.32, cy + r * 0.05);
+    ctx.lineTo(cx - r * 0.05, cy + r * 0.35);
+    ctx.lineTo(cx + r * 0.4, cy - r * 0.28);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+function roundRect(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.roundRect(x, y, w, h, r);
+}
 
 export function initSystemDiagramCanvas(main) {
-  if (stopLoop) { stopLoop(); stopLoop = null; }
-
-  const canvas = main.querySelector(".sd3-canvas");
-  const wrap   = main.querySelector(".sd3-wrap");
-  if (!canvas || !wrap) return;
-
-  if (reducedMotion()) { canvas.style.display = "none"; return; }
-
+  const canvas = main.querySelector(".gears__canvas");
+  const stage = main.querySelector(".gears__stage");
+  if (!canvas || !stage) return;
   const ctx = canvas.getContext("2d");
-  const dpr = Math.min(devicePixelRatio, 2);
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  const cards = [...main.querySelectorAll(".gear-card")];
 
-  function resize() {
-    const cw = Math.min(wrap.clientWidth, 860);
-    const ch = Math.round(Math.min(480, Math.max(340, cw * 0.52)));
-    canvas.width        = cw * dpr;
-    canvas.height       = ch * dpr;
-    canvas.style.width  = cw + "px";
-    canvas.style.height = ch + "px";
-    ctx.scale(dpr, dpr);
+  let Wc = 0, Hc = 0, R = 0;
+  let geo = []; // [{x,y,dir}]
+
+  function layout() {
+    Wc = stage.clientWidth;
+    Hc = Math.round(Wc * 0.74);
+    canvas.width = Wc * dpr;
+    canvas.height = Hc * dpr;
+    canvas.style.width = Wc + "px";
+    canvas.style.height = Hc + "px";
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+    R = Wc * 0.18;
+    const gx = Wc / 2, gy = Hc / 2;
+    // relative Positionen (Schwerpunkt = 0): Zentrum oben, zwei Räder unten
+    const S = { x: gx, y: gy - 1.067 * R };
+    const I = { x: gx - 1.2 * R, y: gy + 0.533 * R };
+    const C = { x: gx + 1.2 * R, y: gy + 0.533 * R };
+    const aI = Math.atan2(I.y - S.y, I.x - S.x);
+    const aC = Math.atan2(C.y - S.y, C.x - S.x);
+    geo = [
+      { x: S.x, y: S.y, dir: 1 },                 // Zentrum (Treiber)
+      { x: I.x, y: I.y, alpha: aI },              // links
+      { x: C.x, y: C.y, alpha: aC },              // rechts
+    ];
   }
+  layout();
+  const ro = new ResizeObserver(layout);
+  ro.observe(stage);
 
-  const ro = new ResizeObserver(resize);
-  ro.observe(wrap);
-  resize();
+  let hovered = -1;
+  let mx = -9999, my = -9999;
 
-  const W = () => canvas.width  / dpr;
-  const H = () => canvas.height / dpr;
-
-  // Hexagon-Radius abhängig von Canvas-Größe
-  const nodeR = () => Math.min(W(), H()) * 0.125;
-
-  // Node-Position in Canvas-Pixeln
-  function pos(n) {
-    return { x: n.tx * W(), y: n.ty * H() };
-  }
-
-  // Hexagon-Pfad (pointy-top, rotation = 0 → erste Ecke oben)
-  function hexPath(cx, cy, r) {
-    ctx.beginPath();
-    for (let i = 0; i < 6; i++) {
-      const a = (Math.PI / 3) * i - Math.PI / 2; // erste Ecke oben
-      const x = cx + r * Math.cos(a);
-      const y = cy + r * Math.sin(a);
-      i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+  function pickHover() {
+    let found = -1, min = Infinity;
+    geo.forEach((g, i) => {
+      const d = Math.hypot(mx - g.x, my - g.y);
+      if (d < R * 1.05 && d < min) { min = d; found = i; }
+    });
+    if (found !== hovered) {
+      hovered = found;
+      canvas.style.cursor = hovered >= 0 ? "pointer" : "default";
+      cards.forEach((c, i) => c.classList.toggle("is-active", i === hovered));
     }
-    ctx.closePath();
   }
 
-  // ── Zustand ────────────────────────────────────────────────────────
-  const entrance   = NODES.map(() => 0);
-  const pulseTimes = EDGES.map(() => Math.random());
-  let   lineP      = 0;    // Entrance-Fortschritt für Linien
-  let   hovered    = -1;
-  let   running    = true;
-  let   lastTs     = null;
-  let   elapsed    = 0;
-  let   mx = -9999, my = -9999;
-
-  const cardEls = main.querySelectorAll(".sd3-card");
-
-  canvas.addEventListener("pointermove", e => {
+  canvas.addEventListener("pointermove", (e) => {
     const r = canvas.getBoundingClientRect();
-    mx = e.clientX - r.left;
-    my = e.clientY - r.top;
+    mx = e.clientX - r.left; my = e.clientY - r.top;
+    pickHover();
   });
-  canvas.addEventListener("pointerleave", () => { mx = my = -9999; });
+  canvas.addEventListener("pointerleave", () => { mx = my = -9999; pickHover(); });
   canvas.addEventListener("click", () => {
-    if (hovered >= 0) {
-      history.pushState({}, "", `/leistungen/${NODES[hovered].slug}/`);
-      window.dispatchEvent(new PopStateEvent("popstate"));
-    }
+    if (hovered >= 0) navigate(`/leistungen/${NODES[hovered].slug}/`);
+  });
+  // Karten ↔ Räder verknüpfen
+  cards.forEach((card, i) => {
+    card.addEventListener("pointerenter", () => {
+      hovered = i;
+      cards.forEach((c, j) => c.classList.toggle("is-active", j === i));
+    });
+    card.addEventListener("pointerleave", () => {
+      hovered = -1;
+      cards.forEach((c) => c.classList.remove("is-active"));
+    });
   });
 
-  // ── Zeichenfunktionen ──────────────────────────────────────────────
+  function rotationFor(i, rotS) {
+    if (i === 0) return rotS;
+    return -rotS + (2 * geo[i].alpha + Math.PI - STEP / 2);
+  }
 
-  function drawEdge(aIdx, bIdx, pulseT, alpha) {
-    if (alpha <= 0) return;
-    const a  = pos(NODES[aIdx]);
-    const b  = pos(NODES[bIdx]);
-    const r  = nodeR();
-    // Linie von Rand zu Rand (nicht Mittelpunkt zu Mittelpunkt)
-    const dx = b.x - a.x, dy = b.y - a.y;
-    const dist = Math.sqrt(dx*dx + dy*dy);
-    const nx = dx / dist, ny = dy / dist;
-    const x1 = a.x + nx * r * 1.05;
-    const y1 = a.y + ny * r * 1.05;
-    const x2 = b.x - nx * r * 1.05;
-    const y2 = b.y - ny * r * 1.05;
-
+  function drawGear(i, rot, entrance, active) {
+    const g = geo[i];
+    const slug = NODES[i].slug;
+    const scale = entrance < 1
+      ? 1 - Math.exp(-7 * entrance) * Math.cos(9 * entrance)
+      : 1;
+    const sc = Math.min(scale, 1.04);
+    const col = active ? RED : CYAN;
     ctx.save();
-    ctx.globalAlpha = alpha * 0.45;
+    ctx.globalAlpha = Math.min(entrance * 1.6, 1);
 
-    // Linie mit Gradient
-    const grad = ctx.createLinearGradient(x1, y1, x2, y2);
-    grad.addColorStop(0, `rgba(${MINT_RGB},0.8)`);
-    grad.addColorStop(0.5, `rgba(${MINT_RGB},0.5)`);
-    grad.addColorStop(1, `rgba(${MINT_RGB},0.8)`);
-    ctx.strokeStyle = grad;
-    ctx.lineWidth   = 1.5;
+    // Glow-Halo
+    const halo = ctx.createRadialGradient(g.x, g.y, R * 0.3 * sc, g.x, g.y, R * 1.5 * sc);
+    halo.addColorStop(0, `rgba(${col},${active ? 0.16 : 0.07})`);
+    halo.addColorStop(1, `rgba(${col},0)`);
+    ctx.fillStyle = halo;
     ctx.beginPath();
-    ctx.moveTo(x1, y1);
-    ctx.lineTo(x2, y2);
-    ctx.stroke();
+    ctx.arc(g.x, g.y, R * 1.5 * sc, 0, Math.PI * 2);
+    ctx.fill();
 
-    // Pulse-Punkt entlang der Linie
-    ctx.globalAlpha = alpha * 0.9;
-    const px = x1 + (x2 - x1) * pulseT;
-    const py = y1 + (y2 - y1) * pulseT;
-    ctx.beginPath();
-    ctx.arc(px, py, 4, 0, Math.PI * 2);
-    ctx.fillStyle   = C_WHITE;
-    ctx.shadowColor = MINT;
-    ctx.shadowBlur  = 14;
+    // Zahnrad-Körper
+    gearPath(ctx, g.x, g.y, R, rot, sc);
+    const body = ctx.createRadialGradient(g.x - R * 0.3, g.y - R * 0.3, 0, g.x, g.y, R * sc);
+    body.addColorStop(0, active ? "#1b1115" : "#101725");
+    body.addColorStop(1, "#06080f");
+    ctx.fillStyle = body;
+    ctx.shadowColor = `rgba(${col},0.5)`;
+    ctx.shadowBlur = active ? 26 : 12;
     ctx.fill();
     ctx.shadowBlur = 0;
 
-    ctx.restore();
-  }
-
-  function drawNode(idx, progress, isActive) {
-    if (progress <= 0) return;
-    const n   = NODES[idx];
-    const { x, y } = pos(n);
-    const r   = nodeR();
-    const svc = services.find(sv => sv.slug === n.slug);
-    const isShield = n.slug === "it-sicherheit";
-
-    // Spring-Skalierung: Overshoot beim Einblenden
-    const t     = Math.min(progress * 1.2, 1);
-    const scale = progress < 1
-      ? 1 - Math.exp(-7 * progress) * Math.cos(9 * progress)
-      : 1;
-    const displayR = r * Math.min(scale, 1.04);
-
-    const pulse = 0.65 + 0.35 * Math.sin(elapsed * 1.3 + idx * 2.0);
-
-    ctx.save();
-    ctx.globalAlpha = Math.min(progress * 1.8, 1);
-
-    // ── Äußerer Schutzring für IT-Sicherheit ──────────────────────
-    if (isShield) {
-      ctx.globalAlpha = Math.min(progress * 1.5, 1) * (0.4 + 0.2 * pulse);
-      hexPath(x, y, displayR * 1.45);
-      ctx.strokeStyle    = MINT;
-      ctx.lineWidth      = 1.5;
-      ctx.setLineDash([8, 6]);
-      ctx.lineDashOffset = -elapsed * 18;
-      ctx.shadowColor    = MINT;
-      ctx.shadowBlur     = 10;
-      ctx.stroke();
-      ctx.shadowBlur     = 0;
-      ctx.setLineDash([]);
-    }
-
-    // ── Glow-Halo ─────────────────────────────────────────────────
-    ctx.globalAlpha = Math.min(progress * 1.5, 1);
-    const haloR = isActive ? displayR * 1.85 : displayR * 1.45;
-    const halo  = ctx.createRadialGradient(x, y, displayR * 0.4, x, y, haloR);
-    halo.addColorStop(0, `rgba(${MINT_RGB},${isActive ? 0.20 : 0.08 * pulse})`);
-    halo.addColorStop(1, `rgba(${MINT_RGB},0)`);
-    hexPath(x, y, haloR);
-    ctx.fillStyle = halo;
-    ctx.fill();
-
-    // ── Hexagon-Körper ─────────────────────────────────────────────
-    ctx.globalAlpha = Math.min(progress * 1.8, 1);
-    const body = ctx.createRadialGradient(
-      x - displayR * 0.3, y - displayR * 0.3, 0,
-      x, y, displayR
-    );
-    body.addColorStop(0, isActive ? "#205c44" : "#112e22");
-    body.addColorStop(1, "#061610");
-
-    hexPath(x, y, displayR);
-    ctx.fillStyle   = body;
-    ctx.shadowColor = MINT;
-    ctx.shadowBlur  = isActive ? 32 : 10 + 8 * pulse;
-    ctx.fill();
-    ctx.shadowBlur  = 0;
-
-    // ── Hexagon-Rahmen ─────────────────────────────────────────────
-    hexPath(x, y, displayR);
-    ctx.strokeStyle = isActive
-      ? MINT
-      : `rgba(${MINT_RGB},${0.45 + 0.35 * pulse})`;
-    ctx.lineWidth   = isActive ? 2.5 : 1.6;
+    // Zahnrad-Rand
+    gearPath(ctx, g.x, g.y, R, rot, sc);
+    ctx.strokeStyle = `rgba(${col},${active ? 0.95 : 0.55})`;
+    ctx.lineWidth = active ? 2.2 : 1.5;
     ctx.stroke();
 
-    // ── Icon ───────────────────────────────────────────────────────
-    ctx.shadowColor = MINT;
-    ctx.shadowBlur  = isActive ? 18 : 8;
-    ICON_MAP[n.slug](ctx, x, y - displayR * 0.08, displayR * 0.7);
-    ctx.shadowBlur  = 0;
+    // statische Nabe + Bohrung
+    ctx.beginPath();
+    ctx.arc(g.x, g.y, R * 0.5 * sc, 0, Math.PI * 2);
+    ctx.strokeStyle = `rgba(${col},0.32)`;
+    ctx.lineWidth = 1.2;
+    ctx.stroke();
 
-    // ── Label außerhalb (unter dem Node) ──────────────────────────
-    ctx.globalAlpha  = Math.min(progress * 2, 1);
-    ctx.textAlign    = "center";
+    // Icon (statisch, dreht nicht mit)
+    if (entrance > 0.6) {
+      ctx.globalAlpha = Math.min((entrance - 0.6) / 0.4, 1);
+      drawIcon(ctx, slug, g.x, g.y - R * 0.04, R * 0.34, `rgba(${col},0.95)`);
+    }
+    ctx.restore();
+
+    // Label unter dem Rad
+    ctx.save();
+    ctx.globalAlpha = Math.min(entrance * 1.8, 1);
+    ctx.textAlign = "center";
     ctx.textBaseline = "top";
-    const labelY     = y + displayR + 10;
-    const titleFS    = Math.max(11, Math.min(15, displayR * 0.3));
-    const roleFS     = Math.max(9,  Math.min(12, displayR * 0.22));
-
-    ctx.font      = `700 ${titleFS}px system-ui,sans-serif`;
-    ctx.fillStyle = isActive ? MINT : C_WHITE;
-    ctx.fillText(svc.title, x, labelY);
-
-    ctx.font      = `${roleFS}px system-ui,sans-serif`;
-    ctx.fillStyle = `rgba(${MINT_RGB},0.75)`;
-    ctx.fillText(svc.node.role, x, labelY + titleFS + 3);
-
+    const svc = services.find((s) => s.slug === slug);
+    const ly = g.y + R * 1.12 * sc;
+    const tfs = Math.max(12, R * 0.16);
+    ctx.font = `500 ${tfs}px "Overused Grotesk", system-ui, sans-serif`;
+    ctx.fillStyle = active ? `rgba(${col},1)` : "#fff";
+    ctx.fillText(svc.title, g.x, ly);
+    ctx.font = `${tfs * 0.72}px "Geist Mono", ui-monospace, monospace`;
+    ctx.fillStyle = `rgba(${CYAN},0.8)`;
+    ctx.fillText(svc.node.role, g.x, ly + tfs * 1.15);
     ctx.restore();
   }
 
-  // ── Frame-Loop ─────────────────────────────────────────────────────
+  function drawMeshSpark(i, t, alpha) {
+    // Funke am Kämm-Punkt zwischen Zentrum und Außenrad
+    const S = geo[0], O = geo[i];
+    const px = S.x + (O.x - S.x) * 0.5;
+    const py = S.y + (O.y - S.y) * 0.5;
+    const pulse = 0.5 + 0.5 * Math.sin(t * 3 + i);
+    ctx.save();
+    ctx.globalAlpha = alpha * (0.3 + 0.4 * pulse);
+    const gl = ctx.createRadialGradient(px, py, 0, px, py, R * 0.28);
+    gl.addColorStop(0, `rgba(${CYAN},0.9)`);
+    gl.addColorStop(1, `rgba(${CYAN},0)`);
+    ctx.fillStyle = gl;
+    ctx.beginPath();
+    ctx.arc(px, py, R * 0.28, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  // ── Statisch (reduced motion) ─────────────────────────────────────────────
+  if (reducedMotion()) {
+    ctx.clearRect(0, 0, Wc, Hc);
+    [1, 2].forEach((i) => drawMeshSpark(i, 0, 1));
+    drawGear(1, rotationFor(1, 0), 1, false);
+    drawGear(2, rotationFor(2, 0), 1, false);
+    drawGear(0, 0, 1, false);
+    onCleanup(() => ro.disconnect());
+    return;
+  }
+
+  // ── Animations-Loop ───────────────────────────────────────────────────────
+  let raf, running = true, last = null, elapsed = 0, started = false;
+  const omega = 0.4;
 
   function frame(ts) {
     if (!running) return;
-    requestAnimationFrame(frame);
-
-    const dt = lastTs ? Math.min((ts - lastTs) / 1000, 0.05) : 0;
-    lastTs   = ts;
+    raf = requestAnimationFrame(frame);
+    const dt = last ? Math.min((ts - last) / 1000, 0.05) : 0;
+    last = ts;
     elapsed += dt;
 
-    ctx.fillStyle = C_BG;
-    ctx.fillRect(0, 0, W(), H());
+    ctx.clearRect(0, 0, Wc, Hc);
+    const rotS = elapsed * omega;
+    const ent = (i) => Math.max(0, Math.min(1, (elapsed - ENTRANCE_DELAY[i]) / 0.8));
 
-    // Entrance-Fortschritt
-    NODES.forEach((_, i) => {
-      const t = elapsed - NODE_DELAYS[i];
-      entrance[i] = t > 0 ? Math.min(1, t / 0.85) : 0;
-    });
-    const lt = elapsed - LINE_DELAY;
-    lineP     = lt > 0 ? Math.min(1, lt / 0.6) : 0;
-
-    // Pulse-Dots
-    EDGES.forEach((_, i) => {
-      pulseTimes[i] = (pulseTimes[i] + dt * (0.16 + i * 0.03)) % 1;
-    });
-
-    // Hover: nächstgelegener Node im Trefferradius
-    let newHov = -1;
-    let minD   = Infinity;
-    NODES.forEach((n, i) => {
-      const { x, y } = pos(n);
-      const r = nodeR() * 1.1;
-      const d = Math.hypot(mx - x, my - y);
-      if (d < r && d < minD) { minD = d; newHov = i; }
-    });
-    if (newHov !== hovered) {
-      hovered = newHov;
-      canvas.style.cursor = hovered >= 0 ? "pointer" : "default";
-      cardEls.forEach((c, i) => c.classList.toggle("is-active", i === hovered));
-    }
-
-    // Zeichenreihenfolge: Kanten → Nodes
-    EDGES.forEach(([a, b], i) =>
-      drawEdge(a, b, pulseTimes[i], lineP * Math.min(entrance[a], entrance[b]))
-    );
-    NODES.forEach((_, i) => drawNode(i, entrance[i], hovered === i));
+    // Kämm-Funken (nur wenn beide Räder weit genug eingeblendet)
+    [1, 2].forEach((i) => drawMeshSpark(i, elapsed, Math.min(ent(0), ent(i))));
+    // Außenräder zuerst, Zentrum oben drauf
+    drawGear(1, rotationFor(1, rotS), ent(1), hovered === 1);
+    drawGear(2, rotationFor(2, rotS), ent(2), hovered === 2);
+    drawGear(0, rotationFor(0, rotS), ent(0), hovered === 0);
   }
 
-  const stopInView = inView(wrap, () => {
-    requestAnimationFrame(frame);
-  }, { amount: 0.2 });
-
-  stopLoop = () => {
-    running = false;
-    ro.disconnect();
-    stopInView?.();
+  // Erst starten, wenn der Block in den Viewport scrollt.
+  let io;
+  const start = () => {
+    if (started) return;
+    started = true;
+    raf = requestAnimationFrame(frame);
   };
+  if ("IntersectionObserver" in window) {
+    io = new IntersectionObserver(
+      (entries) => entries.forEach((e) => e.isIntersecting && start()),
+      { threshold: 0.15 }
+    );
+    io.observe(stage);
+  } else {
+    start();
+  }
+
+  onCleanup(() => {
+    running = false;
+    cancelAnimationFrame(raf);
+    ro.disconnect();
+    io?.disconnect();
+  });
 }
