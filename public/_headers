@@ -1,0 +1,8 @@
+# Cloudflare Pages – Cache-Steuerung
+# Gehashte Assets sind unveränderlich und dürfen lange gecacht werden.
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable
+
+# HTML/SPA-Einstiege immer frisch revalidieren, damit neue Deploys sofort sichtbar sind.
+/*
+  Cache-Control: public, max-age=0, must-revalidate
