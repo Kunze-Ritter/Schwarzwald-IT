@@ -1,0 +1,52 @@
+name: Deploy to Cloudflare Pages
+
+# Pushes auf main -> Production-Deploy (root *.pages.dev URL)
+# Pushes auf Claude-/Feature-Branches -> Preview-Deploy (eigene Preview-URL)
+on:
+  push:
+    branches: [main, "claude/**"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pages-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: cloudflare-pages
+      url: ${{ steps.deploy.outputs.url }}
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      PROJECT_NAME: schwarzwald-it
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+      - run: npm run build
+
+      # Pages-Projekt anlegen, falls es noch nicht existiert (idempotent).
+      - name: Ensure Pages project exists
+        run: npx wrangler@3 pages project create "$PROJECT_NAME" --production-branch=main || true
+
+      - name: Deploy to Cloudflare Pages
+        id: deploy
+        run: |
+          OUT=$(npx wrangler@3 pages deploy dist \
+            --project-name="$PROJECT_NAME" \
+            --branch="${{ github.ref_name }}" \
+            --commit-dirty=true)
+          echo "$OUT"
+          URL=$(echo "$OUT" | grep -oE 'https://[a-zA-Z0-9.-]+\.pages\.dev' | head -1)
+          echo "url=$URL" >> "$GITHUB_OUTPUT"
+          echo "### 🚀 Deployed: $URL" >> "$GITHUB_STEP_SUMMARY"
